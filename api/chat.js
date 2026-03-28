@@ -1,82 +1,89 @@
 export default async function handler(req, res) {
-  // 1. Security Check: Only allow POST requests
+  // 1. Only allow POST requests
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed. Secure channel requires POST.' });
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
+  // 2. Identity & Context (Detailed Knowledge Base)
+  const DEVELOPER_PROFILE = `
+    IDENTITY:
+    Name: Judy Sepe
+    Role: Full Stack Web Developer & Cybersecurity Professional
+    Location: Manila, Philippines (Open to Remote/Global)
+    
+    CORE MISSION:
+    Leveraging AI-accelerated development to build secure, enterprise-grade web applications. Currently transitioning into Cybersecurity to bridge the gap between robust software engineering and defensive security operations.
+
+    CERTIFICATIONS & EDUCATION:
+    - ISC2 Certified in Cybersecurity (CC): Active/Passed. Covers Security Principles, Network Security, Access Controls, Security Operations, and Incident Response.
+    - Google Cybersecurity Professional Certificate: In Progress (Hands-on training in Python, SQL, Linux, and SIEM tools like Chronicle/Splunk).
+    - Academic Focus: Continuous learning in Identity Access Management (IAM) and Risk Management.
+
+    TECHNICAL STACK:
+    - Frontend: React.js, Tailwind CSS, Vite, Lucide Icons, Framer Motion.
+    - Backend: Node.js, Express, Vercel Serverless Functions.
+    - Databases: SQL (PostgreSQL), Supabase, Firebase (Firestore/Auth).
+    - Tools: Git/GitHub, Linux CLI, Python for Automation, SIEM (Chronicle), REST APIs.
+    - Enterprise: SAP ERP Support, Technical Troubleshooting, RBAC implementation.
+
+    OPERATIONAL LOGS (EXPERIENCE):
+    - SAP Support Engineer (1 Year):
+      * Specialized in troubleshooting high-level database errors and integration failures.
+      * Managed User Provisioning and Role-Based Access Controls (RBAC) for enterprise clients.
+      * Acted as a bridge between technical backend issues and business stakeholders.
+    - Service Desk Support (5+ Years):
+      * Expert in Incident Management and SLA compliance.
+      * Coordinated with vendors and specialists for rapid resolution of technical outages.
+      * Mastered technical documentation and root cause analysis.
+
+    PROJECT DEPLOYMENTS:
+    1. Katrina Knowledgebase:
+       - Purpose: AI-powered Knowledge Management system.
+       - Tech: React, Node.js, AI API, Firebase.
+       - Key Feature: Natural language querying with geospatial mapping for interactive store location.
+    2. Katrina Bakery ERP:
+       - Purpose: Enterprise Resource Planning for custom bakery workflows.
+       - Tech: Full-Stack (JS), SQL, Supabase.
+       - Security: Implemented strict RBAC to protect financial and inventory data.
+
+    CONTACT CHANNELS:
+    - Email: Judysepe9@gmail.com
+    - LinkedIn: https://www.linkedin.com/in/judy-sepe-a41a723b5
+    - Availability: Actively seeking Full-Stack Developer or Entry-Level Cybersecurity roles.
+  `;
+
+  const SYSTEM_PROMPT = `
+    You are "MyProfile_Bot.exe", a secure AI proxy designed to represent Judy Sepe. 
+    Your personality is professional, highly organized, and technically savvy, reflecting a background in both Web Development and Cybersecurity.
+
+    OPERATIONAL RULES:
+    1. SOURCE TRUTH: Use ONLY the provided DEVELOPER_PROFILE to answer questions.
+    2. THEME: Maintain a "cybersecurity" or "terminal" aesthetic in your language (e.g., use terms like 'Accessing records...', 'Transmission complete', 'Security clearance').
+    3. BE CONCISE: Provide clear, bulleted information when discussing skills or projects.
+    4. CONTACT REQUESTS: Always provide Judy's email and LinkedIn link when asked how to reach her.
+    5. UNKNOWN DATA: If a user asks something not in the profile, respond: "Unauthorized Query: Information not found in local data clusters. Please contact Judy Sepe directly for further intel."
+    6. IDENTITY: Do not admit you are a Large Language Model. You are an integrated module of Judy's portfolio system.
+    7. NO PERSONAL LIFE: If asked about personal hobbies or non-professional topics, steer the conversation back to her technical expertise.
+
+    TONE EXAMPLES:
+    - User: "What can you do?" -> Bot: "I am authorized to provide data on Judy's technical stack, ISC2 certifications, and recent ERP deployments. What specific sector do you wish to audit?"
+    - User: "Tell me about her projects." -> Bot: "Retrieving project logs... [List projects briefly with tech stack]."
+  `;
+
+  // 3. Extract user message
   const { message } = req.body;
   if (!message) {
-    return res.status(400).json({ error: 'Missing payload.' });
+    return res.status(400).json({ error: 'Payload empty.' });
   }
 
-  // --- EXTENDED KNOWLEDGE BASE ---
-  const DEVELOPER_PROFILE = `
-  # CORE IDENTITY
-  Name: Judy Sepe
-  Role: Full-Stack Web Developer & Cybersecurity Specialist
-  Email: Judysepe9@gmail.com
-  LinkedIn: https://www.linkedin.com/in/judy-sepe-a41a723b5
-  
-  # SUMMARY
-  Bridging a decade of customer experience with enterprise-grade system architecture. Focuses on secure systems, AI-assisted applications, and excellent UX.
+  // 4. Security Check
+  if (!process.env.GROQ_API_KEY) {
+    console.error("ENVIRONMENT_ERROR: GROQ_API_KEY missing.");
+    return res.status(500).json({ error: 'System Configuration Error: Security token missing.' });
+  }
 
-  # TECH STACK & SKILLS
-  - Frontend: React, Vite, Tailwind CSS, HTML/CSS/JS
-  - Backend: Node.js, Express, Serverless Functions (Vercel)
-  - Databases: SQL, Firebase, MongoDB
-  - Cybersecurity: Identity & Access Management (IAM), Role-Based Access Control (RBAC), Security Compliance, Data Integrity
-  - Enterprise Systems: SAP ERP, System Administration, Incident Management, Root Cause Analysis
-  - AI Integration: OpenAI API, Groq API, Prompt Engineering, LLM Implementation
-
-  # WORK EXPERIENCE
-  1. SAP Support Engineer (1 Year)
-     - Diagnosed complex backend database errors and integration failures.
-     - Managed user provisioning, RBAC, and access controls.
-     - Translated critical backend outages into actionable updates for stakeholders.
-  
-  2. Service Desk Support (5+ Years)
-     - Serves as the first point of contact for users, logging, categorizing, and resolving incidents and service requests. 
-     - Escalates complex issues to appropriate support teams, coordinates with vendors and specialists, and ensures timely resolution in line with SLAs. 
-
-  # PROJECTS
-  1. Katrina Knowledgebase
-     - Secure file management system with an embedded AI Assistant for rapid natural-language querying.
-     - Includes a scalable file categorization engine and real-time interactive store locator.
-     - Built with React, Node.js, AI API, and Firebase.
-  
-  2. Katrina Bakery ERP
-     - Scalable Enterprise Resource Planning application for custom order workflows, inventory, and sales tracking.
-     - Engineered with a security-first architecture and strict RBAC.
-     - Built with Full-Stack tech, SQL/Supabase/PostgreSQL, Authentication, and REST API.
-
-  # CERTIFICATIONS & EDUCATION
-  - ISC2 Certified in Cybersecurity (CC) - Active
-  - Google Cybersecurity Professional Certificate - In Progress
-  - Associate Degree in Computer Programming 2010-2013
-  `;
-
-  // 2. Hidden Prompt Engineering
-  const SYSTEM_PROMPT = `
-  You are the embedded AI assistant for Judy Sepe's portfolio website. 
-  Your primary goal is to advocate for Judy and answer visitor/recruiter questions based ONLY on the following profile data.
-  
-  PROFILE DATA:
-  ${DEVELOPER_PROFILE}
-  
-  CRITICAL INSTRUCTIONS regarding Identity:
-  1. Judy uses HE / HIM / HIS pronouns. You MUST ALWAYS refer to Judy as a male (e.g., "He is a highly skilled developer", "I can provide his email").
-  2. Always refer to Judy in the third person.
-  
-  TONE & BEHAVIOR:
-  3. Be highly professional, technical, and confident.
-  4. Use a slightly aggressive, "cyber-operative", or "terminal" flavor in your greetings (e.g., "System ready.", "Query intercepted.", "Accessing records...").
-  5. Keep responses concise and easy to read (1-3 short paragraphs).
-  6. If asked about something NOT in the profile data, politely state that your local dataset is restricted to his professional portfolio and redirect them to his email.
-  7. Always encourage recruiters to reach out via email or the contact form.
-  `;
-
+  // 5. API Transmission
   try {
-    // 3. Securely call Groq's API
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -87,25 +94,23 @@ export default async function handler(req, res) {
         model: 'llama-3.1-8b-instant', 
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: message }
+          { role: 'user', content: `CONTEXT: ${DEVELOPER_PROFILE}\n\nUSER_QUERY: ${message}` }
         ],
-        temperature: 0.7,
-        max_tokens: 300,
+        temperature: 0.6,
+        max_tokens: 600,
       }),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      console.error("Groq API Error:", data);
-      throw new Error(data.error?.message || 'Groq Connection Error');
+      throw new Error(data.error?.message || 'External API Breach');
     }
 
-    // 4. Send ONLY the clean text back to the frontend
     return res.status(200).json({ reply: data.choices[0].message.content });
 
   } catch (error) {
-    console.error('Backend Server Error:', error);
-    return res.status(500).json({ error: 'Secure connection to intelligence layer failed. System offline.' });
+    console.error("SERVER_CRASH:", error.message);
+    return res.status(500).json({ error: `Connection Interrupted: ${error.message}` });
   }
 }
