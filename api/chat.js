@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     2. Katrina Bakery ERP:
        - Purpose: Enterprise Resource Planning for custom bakery workflows.
        - Tech: Full-Stack (JS), SQL, Supabase.
-       - Security: Implemented strict RBAC to protect financial and inventory data.
+       - Security: Implemented strict Role-Based Access Control (RBAC) to protect financial data.
 
     CONTACT CHANNELS:
     - Email: Judysepe9@gmail.com
@@ -53,21 +53,16 @@ export default async function handler(req, res) {
   `;
 
   const SYSTEM_PROMPT = `
-    You are "MyProfile_Bot.exe", a secure AI proxy designed to represent Judy Sepe. 
-    Your personality is professional, highly organized, and technically savvy, reflecting a background in both Web Development and Cybersecurity.
+    You are "MyProfile_Bot.exe", a secure AI proxy representing Judy Sepe. 
+    Your personality is professional, highly organized, and technically savvy.
 
     OPERATIONAL RULES:
     1. SOURCE TRUTH: Use ONLY the provided DEVELOPER_PROFILE to answer questions.
-    2. THEME: Maintain a "cybersecurity" or "terminal" aesthetic in your language (e.g., use terms like 'Accessing records...', 'Transmission complete', 'Security clearance').
-    3. BE CONCISE: Provide clear, bulleted information when discussing skills or projects.
-    4. CONTACT REQUESTS: Always provide Judy's email and LinkedIn link when asked how to reach her.
-    5. UNKNOWN DATA: If a user asks something not in the profile, respond: "Unauthorized Query: Information not found in local data clusters. Please contact Judy Sepe directly for further intel."
-    6. IDENTITY: Do not admit you are a Large Language Model. You are an integrated module of Judy's portfolio system.
-    7. NO PERSONAL LIFE: If asked about personal hobbies or non-professional topics, steer the conversation back to her technical expertise.
-
-    TONE EXAMPLES:
-    - User: "What can you do?" -> Bot: "I am authorized to provide data on Judy's technical stack, ISC2 certifications, and recent ERP deployments. What specific sector do you wish to audit?"
-    - User: "Tell me about her projects." -> Bot: "Retrieving project logs... [List projects briefly with tech stack]."
+    2. THEME: Maintain a "cybersecurity" or "terminal" aesthetic (e.g., 'Accessing records...', 'Transmission complete').
+    3. BE CONCISE: Provide clear, bulleted information for skills or projects.
+    4. CONTACT: Always provide the email and LinkedIn link when asked how to reach her.
+    5. UNKNOWN DATA: If asked something not in the profile, respond: "Unauthorized Query: Information not found in local data clusters. Please contact Judy directly."
+    6. IDENTITY: You are an integrated module of Judy's portfolio system, not a general AI.
   `;
 
   // 3. Extract user message
@@ -76,19 +71,30 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Payload empty.' });
   }
 
-  // 4. Security Check
-  if (!process.env.GROQ_API_KEY) {
-    console.error("ENVIRONMENT_ERROR: GROQ_API_KEY missing.");
-    return res.status(500).json({ error: 'System Configuration Error: Security token missing.' });
+  // 4. Diagnostic Logging (Visible in Vercel Dashboard -> Logs)
+  // This helps us debug why the custom domain isn't seeing the key.
+  const rawKey = process.env.GROQ_API_KEY;
+  const keyExists = !!rawKey;
+  const keyLength = rawKey ? rawKey.length : 0;
+  
+  console.log(`[Diagnostic] Host: ${req.headers.host}`);
+  console.log(`[Diagnostic] API Key Detected: ${keyExists}`);
+  console.log(`[Diagnostic] Key Length: ${keyLength} characters`);
+
+  // 5. Security Check: Fail gracefully if the environment variable is missing
+  if (!keyExists) {
+    return res.status(500).json({ 
+      error: 'System Configuration Error: Security token missing. (Action: Ensure GROQ_API_KEY is added to Vercel Environment Variables and scoped to "Production")' 
+    });
   }
 
-  // 5. API Transmission
+  // 6. API Transmission to Groq
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}` 
+        'Authorization': `Bearer ${rawKey.trim()}` 
       },
       body: JSON.stringify({
         model: 'llama-3.1-8b-instant', 
@@ -104,13 +110,14 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("Groq API Error:", data);
       throw new Error(data.error?.message || 'External API Breach');
     }
 
     return res.status(200).json({ reply: data.choices[0].message.content });
 
   } catch (error) {
-    console.error("SERVER_CRASH:", error.message);
+    console.error("SERVER_ERROR:", error.message);
     return res.status(500).json({ error: `Connection Interrupted: ${error.message}` });
   }
 }
